@@ -10,6 +10,9 @@ import platform = require('vs/platform/platform');
 import abr = require('vs/workbench/browser/actionBarRegistry');
 import { TPromise } from 'vs/base/common/winjs.base';
 import editorbrowser = require('vs/editor/browser/editorBrowser');
+//import { ServicesAccessor, editorAction, EditorAction, CommonEditorRegistry, EditorCommand } from 'vs/editor/common/editorCommonExtensions';
+import { /*EditorContextKeys, */ICommonCodeEditor } from 'vs/editor/common/editorCommon';
+import { ContextKeyExpr, RawContextKey, IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import editorcommon = require('vs/editor/common/editorCommon');
 import baseeditor = require('vs/workbench/browser/parts/editor/baseEditor');
 import WorkbenchEditorCommon = require('vs/workbench/common/editor');
@@ -28,7 +31,7 @@ import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace
 import { IFileService } from 'vs/platform/files/common/files';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import wbar = require('vs/workbench/common/actionRegistry');
-import { SyncActionDescriptor } from 'vs/platform/actions/common/actions';
+import { SyncActionDescriptor, MenuId, MenuRegistry } from 'vs/platform/actions/common/actions';
 import {
 	OpenChangeAction, OpenFileAction, SyncAction, PullAction, PushAction,
 	PushToRemoteAction, PublishAction, StartGitBranchAction, StartGitCheckoutAction,
@@ -140,6 +143,26 @@ class OpenInDiffAction extends baseeditor.EditorInputAction {
 		this.toDispose = lifecycle.dispose(this.toDispose);
 	}
 }
+
+// @editorAction
+// class GitStageSelectedLinesAction extends EditorAction {
+// 	constructor() {
+// 		super({
+// 			id: 'editor.git.action.stageSelectedLines',
+// 			label: nls.localize('gitStageSelectedLinesAction', "Git: Stage selected lines"),
+// 			alias: 'Git: Stage selected lines',
+// 			precondition: ContextKeyExpr.and(EditorContextKeys.HasNonEmptySelection),
+// 			menuOpts: {
+// 				group: 'git',
+// 				order: 0
+// 			}
+// 		});
+// 	}
+
+// 	public run(accessor: ServicesAccessor, editor: ICommonCodeEditor): TPromise<void> {
+// 		return null;
+// 	}
+// }
 
 class OpenInEditorAction extends baseeditor.EditorInputAction {
 
@@ -375,7 +398,7 @@ export abstract class BaseStageRangesAction extends baseeditor.EditorInputAction
 	private editorService: IWorkbenchEditorService;
 	private editor: editorbrowser.IDiffEditor;
 
-	constructor(id: string, label: string, editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
+	constructor(id: string, label: string, editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService, @IContextKeyService contextKeyService: IContextKeyService) {
 		super(id, label);
 
 		this.editorService = editorService;
@@ -437,7 +460,7 @@ export abstract class BaseStageRangesAction extends baseeditor.EditorInputAction
 		});
 	}
 
-	private updateEnablement(): void {
+	protected updateEnablement(): void {
 		this.enabled = this.isEnabled();
 	}
 }
@@ -445,18 +468,27 @@ export abstract class BaseStageRangesAction extends baseeditor.EditorInputAction
 export class StageRangesAction extends BaseStageRangesAction {
 	static ID = 'workbench.action.git.stageRanges';
 	static LABEL = nls.localize('stageSelectedLines', "Stage Selected Lines");
+	private isStagingEnabledContextKey: IContextKey<boolean>;
 
-	constructor(editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
-		super(StageRangesAction.ID, StageRangesAction.LABEL, editor, gitService, editorService);
+	constructor(editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService, @IContextKeyService contextKeyService: IContextKeyService) {
+		super(StageRangesAction.ID, StageRangesAction.LABEL, editor, gitService, editorService, contextKeyService);
+		this.isStagingEnabledContextKey = CONTEXT_STAGING_ENABLED.bindTo(contextKeyService);
+	}
+
+	protected updateEnablement(): void {
+		super.updateEnablement();
+		this.isStagingEnabledContextKey.set(this.enabled);
 	}
 }
 
 export class UnstageRangesAction extends BaseStageRangesAction {
 	static ID = 'workbench.action.git.unstageRanges';
 	static LABEL = nls.localize('unstageSelectedLines', "Unstage Selected Lines");
+	private isUnstagingEnabledContextKey: IContextKey<boolean>;
 
-	constructor(editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService) {
-		super(UnstageRangesAction.ID, UnstageRangesAction.LABEL, editor, gitService, editorService);
+	constructor(editor: tdeditor.TextDiffEditor, @IGitService gitService: IGitService, @IWorkbenchEditorService editorService: IWorkbenchEditorService, @IContextKeyService contextKeyService: IContextKeyService) {
+		super(UnstageRangesAction.ID, UnstageRangesAction.LABEL, editor, gitService, editorService, contextKeyService);
+		this.isUnstagingEnabledContextKey = CONTEXT_UNSTAGING_ENABLED.bindTo(contextKeyService);
 	}
 
 	protected getRangesAppliedResult(editor: editorbrowser.IDiffEditor) {
@@ -470,6 +502,11 @@ export class UnstageRangesAction extends BaseStageRangesAction {
 			}));
 
 		return applyChangesToModel(editor.getModel().modified, editor.getModel().original, changes);
+	}
+
+	protected updateEnablement(): void {
+		super.updateEnablement();
+		this.isUnstagingEnabledContextKey.set(this.enabled);
 	}
 }
 
@@ -658,3 +695,24 @@ workbenchActionRegistry.registerWorkbenchAction(new SyncActionDescriptor(InputCo
 workbenchActionRegistry.registerWorkbenchAction(new SyncActionDescriptor(UndoLastCommitAction, UndoLastCommitAction.ID, UndoLastCommitAction.LABEL), 'Git: Undo Last Commit', category);
 workbenchActionRegistry.registerWorkbenchAction(new SyncActionDescriptor(WorkbenchStageAction, WorkbenchStageAction.ID, WorkbenchStageAction.LABEL), 'Git: Stage', category);
 workbenchActionRegistry.registerWorkbenchAction(new SyncActionDescriptor(WorkbenchUnstageAction, WorkbenchUnstageAction.ID, WorkbenchUnstageAction.LABEL), 'Git: Unstage', category);
+
+export const CONTEXT_STAGING_ENABLED = new RawContextKey<boolean>('isStagingEnabled', false);
+export const CONTEXT_UNSTAGING_ENABLED = new RawContextKey<boolean>('isUnstagingEnabled', false);
+
+MenuRegistry.appendMenuItem(MenuId.EditorContext, {
+	command: {
+		id: 'gitStageSelected',
+		title: nls.localize('stageSelected', "Git stage")
+	},
+	when: ContextKeyExpr.and(CONTEXT_STAGING_ENABLED),
+	group: 'navigation'
+});
+
+MenuRegistry.appendMenuItem(MenuId.EditorContext, {
+	command: {
+		id: 'gitUnstageSelected',
+		title: nls.localize('unstageSelected', "Git unstage")
+	},
+	when: ContextKeyExpr.and(CONTEXT_UNSTAGING_ENABLED),
+	group: 'navigation'
+});

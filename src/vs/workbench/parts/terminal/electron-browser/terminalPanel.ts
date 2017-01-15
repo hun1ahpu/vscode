@@ -157,22 +157,32 @@ export class TerminalPanel extends Panel {
 					} else {
 						terminal.paste();
 					}
-				} else {
-					const standardEvent = new StandardMouseEvent(event);
-					let anchor: { x: number, y: number } = { x: standardEvent.posx, y: standardEvent.posy };
-					this._contextMenuService.showContextMenu({
-						getAnchor: () => anchor,
-						getActions: () => TPromise.as(this._getContextMenuActions()),
-						getActionsContext: () => this._parentDomElement,
-						getKeyBinding: (action) => {
-							const opts = this._keybindingService.lookupKeybindings(action.id);
-							if (opts.length > 0) {
-								return opts[0]; // only take the first one
-							}
-							return null;
-						}
-					});
 				}
+			}
+		}));
+		this._register(DOM.addDisposableListener(this._terminalContainer, 'contextmenu', (event: Event) => {
+			if (this._terminalService.terminalInstances.length === 0) {
+				return;
+			}
+			if (this._terminalService.configHelper.getRightClickCopyPaste()) {
+				// already handled by mousedown event handler
+				return;
+			}
+			if (event instanceof MouseEvent) {
+				const standardEvent = new StandardMouseEvent(event);
+				let anchor: { x: number, y: number } = { x: standardEvent.posx, y: standardEvent.posy };
+				this._contextMenuService.showContextMenu({
+					getAnchor: () => anchor,
+					getActions: () => TPromise.as(this._getContextMenuActions()),
+					getActionsContext: () => this._parentDomElement,
+					getKeyBinding: (action) => {
+						const opts = this._keybindingService.lookupKeybindings(action.id);
+						if (opts.length > 0) {
+							return opts[0]; // only take the first one
+						}
+						return null;
+					}
+				});
 			}
 		}));
 		this._register(DOM.addDisposableListener(this._parentDomElement, 'click', (event) => {

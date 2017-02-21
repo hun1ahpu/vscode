@@ -126,6 +126,16 @@ export class NoTabsTitleControl extends TitleControl {
 
 		this.editorLabel.setLabel({ name, description, resource }, { title: verboseDescription, italic: !isPinned, extraClasses: ['title-label'] });
 
+		// Tab Close
+		const tabCloseContainer = document.createElement('div');
+		DOM.addClass(tabCloseContainer, 'tab-close');
+		this.titleContainer.parentElement.appendChild(tabCloseContainer);
+
+		// ['off', 'left'].forEach(option => {
+		// 			const domAction = this.tabOptions.tabCloseButton === option ? DOM.addClass : DOM.removeClass;
+		// 			domAction(this.titleContainer, `close-button-${option}`);
+		// 		});
+
 		// Update Editor Actions Toolbar
 		this.updateEditorActionsToolbar();
 	}

@@ -11,6 +11,8 @@ import { IEditorGroup, toResource } from 'vs/workbench/common/editor';
 import DOM = require('vs/base/browser/dom');
 import { TitleControl } from 'vs/workbench/browser/parts/editor/titleControl';
 import { EditorLabel } from 'vs/workbench/browser/labels';
+import { ActionBar } from 'vs/base/browser/ui/actionbar/actionbar';
+import nls = require('vs/nls');
 
 export class NoTabsTitleControl extends TitleControl {
 	private titleContainer: HTMLElement;
@@ -38,6 +40,14 @@ export class NoTabsTitleControl extends TitleControl {
 		this.toDispose.push(this.editorLabel);
 		this.toDispose.push(DOM.addDisposableListener(this.editorLabel.labelElement, DOM.EventType.CLICK, (e: MouseEvent) => this.onTitleLabelClick(e)));
 		this.toDispose.push(DOM.addDisposableListener(this.editorLabel.descriptionElement, DOM.EventType.CLICK, (e: MouseEvent) => this.onTitleLabelClick(e)));
+
+		// Tab Close
+		const tabCloseContainer = document.createElement('div');
+		DOM.addClass(tabCloseContainer, 'tab-close');
+		this.titleContainer.appendChild(tabCloseContainer);
+
+		const bar = new ActionBar(tabCloseContainer, { ariaLabel: nls.localize('araLabelTabActions', "Tab actions")/*, actionRunner: new TabActionRunner(() => this.context, index)*/ });
+		bar.push(this.closeEditorAction, { icon: true, label: false, keybinding: this.getKeybindingLabel(this.closeEditorAction) });
 
 		// Right Actions Container
 		const actionsContainer = document.createElement('div');
@@ -126,10 +136,7 @@ export class NoTabsTitleControl extends TitleControl {
 
 		this.editorLabel.setLabel({ name, description, resource }, { title: verboseDescription, italic: !isPinned, extraClasses: ['title-label'] });
 
-		// Tab Close
-		const tabCloseContainer = document.createElement('div');
-		DOM.addClass(tabCloseContainer, 'tab-close');
-		this.titleContainer.parentElement.appendChild(tabCloseContainer);
+
 
 		// ['off', 'left'].forEach(option => {
 		// 			const domAction = this.tabOptions.tabCloseButton === option ? DOM.addClass : DOM.removeClass;
